@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>Form Đăng Nhập Kéo Đèn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --light: 1; /* 0 = tối om, 1 = đèn sáng — JS điều khiển từng khung hình */
+        --room: #07090d;
+        --amber: #f2a93b;
+        --amber-deep: #c67f1d;
+        --paper: #fffaf0;
+        --ink: #2b2115;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: "Be Vietnam Pro", system-ui, sans-serif;
+        background: var(--room);
+        color: #f5ead6;
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button, input { font-family: inherit; }
+      button { min-height: 2.25rem; }
+
+      /* ---------- Căn phòng ---------- */
+      .scene {
+        position: fixed; inset: 0; overflow: hidden;
+        background:
+          radial-gradient(ellipse 120% 55% at 50% -10%, #141a22 0%, transparent 60%),
+          linear-gradient(#0a0d12, #05070a 78%);
+      }
+      /* Trần nhà */
+      .ceiling {
+        position: absolute; top: 0; left: 0; right: 0; height: 10px;
+        background: linear-gradient(#232a33, #12161c);
+        box-shadow: 0 2px 10px rgba(0,0,0,.6);
+        z-index: 3;
+      }
+      /* Ánh sáng ambient hắt lên tường khi đèn sáng */
+      .ambient {
+        position: absolute; inset: 0; pointer-events: none;
+        background:
+          radial-gradient(ellipse 75% 46% at 50% 16%, rgba(255,196,110,.20), transparent 62%),
+          radial-gradient(ellipse 46% 30% at 50% 58%, rgba(255,178,92,.10), transparent 70%);
+        opacity: var(--light);
+      }
+      /* Vệt sáng đọng trên sàn */
+      .pool {
+        position: absolute; left: 50%; bottom: 4vh; width: min(680px, 92vw); height: 120px;
+        transform: translateX(-50%);
+        background: radial-gradient(ellipse at center, rgba(255,190,105,.28), transparent 68%);
+        opacity: var(--light);
+        pointer-events: none;
+      }
+      /* Ô cửa sổ bên trái (chỉ PC) — nhìn ra vườn xanh, bậu cửa bày cây */
+      .window {
+        position: absolute; top: 19vh; left: 4.5vw; width: 208px; z-index: 1;
+        opacity: calc(.05 + var(--light) * .95);
+        filter: brightness(calc(.35 + var(--light) * .75));
+        pointer-events: none;
+      }
+      .window-frame {
+        position: relative; height: 252px;
+        border: 10px solid #4a3420;
+        border-bottom-width: 6px;
+        border-radius: 6px 6px 2px 2px;
+        background: linear-gradient(180deg, #9ec7e8 0%, #cfe6f2 38%, #e6efd2 62%, #8fbf7a 63%, #5e9a4e 100%);
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,.35), inset 0 0 34px rgba(30,60,30,.18), 0 18px 34px rgba(0,0,0,.55);
+        overflow: hidden;
+      }
+      .window-frame::before { /* nắng + mây + đồi xa vẽ bằng gradient */
+        content: ""; position: absolute; inset: 0;
+        background:
+          radial-gradient(circle at 78% 16%, rgba(255,244,190,.95) 0 16px, rgba(255,244,190,.35) 17px 30px, transparent 31px),
+          radial-gradient(ellipse 52px 13px at 26% 18%, rgba(255,255,255,.92) 60%, transparent 61%),
+          radial-gradient(ellipse 38px 10px at 58% 27%, rgba(255,255,255,.75) 60%, transparent 61%),
+          radial-gradient(ellipse 130% 42% at 18% 108%, #6fae5c 52%, transparent 53%),
+          radial-gradient(ellipse 120% 38% at 88% 110%, #4d8a42 52%, transparent 53%);
+      }
+      .window-frame::after { /* vệt sáng xiên trên kính */
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(112deg, transparent 30%, rgba(255,255,255,.20) 42%, rgba(255,255,255,.05) 50%, transparent 58%);
+      }
+      .mullion-v, .mullion-h { position: absolute; background: #4a3420; z-index: 2; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
+      .mullion-v { top: 0; bottom: 0; left: 50%; width: 8px; transform: translateX(-50%); }
+      .mullion-h { left: 0; right: 0; top: 44%; height: 8px; }
+      .window-curtain {
+        position: absolute; top: 0; bottom: 0; width: 30px; z-index: 3;
+        background: linear-gradient(90deg, rgba(250,243,225,.95), rgba(238,222,188,.82) 55%, rgba(226,204,160,.55));
+        box-shadow: inset -6px 0 10px rgba(120,90,40,.18);
+      }
+      .window-curtain.left { left: 0; border-radius: 0 0 14px 0; }
+      .window-curtain.right { right: 0; transform: scaleX(-1); border-radius: 0 0 14px 0; }
+      .window-sill {
+        position: relative; height: 14px; margin: 0 -12px;
+        background: linear-gradient(180deg, #6b4c2c, #4a3420);
+        border-radius: 3px;
+        box-shadow: 0 8px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,235,200,.35);
+      }
+      .plants { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 2px; z-index: 4; }
+      .plant { display: block; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+      @media (max-width: 1100px) { .window { width: 172px; left: 3vw; } .window-frame { height: 214px; } }
+      @media (max-width: 900px) { .window { display: none; } }
+      /* Chân tường */
+      .baseboard {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 14px;
+        background: linear-gradient(rgba(255,255,255,.05), rgba(0,0,0,.35));
+        opacity: calc(.25 + var(--light) * .75);
+      }
+      /* Vignette tối góc phòng */
+      .vignette {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse 105% 90% at 50% 42%, transparent 55%, rgba(0,0,0,.55) 100%);
+      }
+
+      /* ---------- Cụm đèn đu đưa ---------- */
+      .swing {
+        position: absolute; top: 0; left: 50%; width: 0; height: 0;
+        transform-origin: 0 0;
+        z-index: 5;
+        will-change: transform;
+      }
+      .cord {
+        position: absolute; top: 0; left: -1.5px; width: 3px; height: 118px;
+        background: linear-gradient(#3d434c, #22272e);
+        border-radius: 2px;
+      }
+      .glow {
+        position: absolute; top: 196px; left: 0; width: 380px; height: 380px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(255,224,166,.9) 0%, rgba(255,186,96,.32) 42%, transparent 68%);
+        opacity: var(--light);
+        pointer-events: none;
+      }
+      .cone {
+        position: absolute; top: 188px; left: 0; width: min(900px, 170vw); height: 76vh;
+        transform: translateX(-50%);
+        clip-path: polygon(46.5% 0, 53.5% 0, 100% 100%, 0 100%);
+        background: linear-gradient(rgba(255,208,138,.26), rgba(255,182,94,.06) 62%, transparent 92%);
+        opacity: var(--light);
+        pointer-events: none;
+      }
+      .lamp { position: absolute; top: 104px; left: 0; transform: translateX(-50%); }
+      .bulb-core {
+        position: absolute; top: 178px; left: 0; width: 34px; height: 34px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 38%, #fffbe9, #ffd98c 55%, #f7ae4e);
+        opacity: var(--light);
+        box-shadow: 0 0 34px 10px rgba(255,196,100,.55);
+        pointer-events: none;
+      }
+      /* Hạt bụi bay trong chùm sáng */
+      .mote {
+        position: absolute; border-radius: 50%;
+        background: rgba(255,232,190,.85);
+        opacity: 0;
+        animation: drift linear infinite;
+      }
+      @keyframes drift {
+        0% { transform: translate(0, 0); opacity: 0; }
+        12% { opacity: calc(var(--light) * .75); }
+        88% { opacity: calc(var(--light) * .6); }
+        100% { transform: translate(var(--dx, 14px), var(--dy, 90px)); opacity: 0; }
+      }
+
+      /* ---------- Dây kéo ---------- */
+      .pull {
+        position: absolute; top: 148px; left: 66px;
+        display: flex; flex-direction: column; align-items: center;
+        z-index: 6;
+      }
+      .pull-line {
+        width: 3px; height: 88px; border-radius: 2px;
+        background: repeating-linear-gradient(#cbbfa9 0 4px, #9d8f74 4px 8px);
+        box-shadow: 0 0 0 .5px rgba(0,0,0,.35);
+      }
+      .pull-line.snap { transition: height .5s cubic-bezier(.3, 1.7, .45, 1); }
+      .bead-btn {
+        position: relative;
+        width: 52px; height: 58px; margin-top: -2px;
+        padding: 0; border: 0; background: transparent;
+        cursor: grab; touch-action: none;
+        display: grid; place-items: start center;
+      }
+      .bead-btn:active { cursor: grabbing; }
+      .bead-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; border-radius: 12px; }
+      .bead {
+        width: 24px; height: 38px; border-radius: 12px / 16px;
+        background: linear-gradient(100deg, #c98d4b, #8a5a24 55%, #6f4519);
+        box-shadow:
+          inset 0 3px 5px rgba(255,235,200,.55),
+          inset 0 -6px 8px rgba(0,0,0,.45),
+          0 4px 8px rgba(0,0,0,.5);
+        position: relative;
+      }
+      .bead::before, .bead::after {
+        content: ""; position: absolute; left: 3px; right: 3px; height: 2px;
+        background: rgba(46,28,8,.5); border-radius: 2px;
+      }
+      .bead::before { top: 11px; } .bead::after { top: 25px; }
+      /* Vòng sáng nhấp nháy quanh tay nắm khi phòng tối, để anh còn thấy đường kéo */
+      .bead-btn .ping {
+        position: absolute; top: 8px; left: 50%; width: 34px; height: 34px;
+        transform: translateX(-50%);
+        border-radius: 50%;
+        border: 2px solid rgba(255,196,100,.0);
+        pointer-events: none;
+      }
+      body.off .bead-btn .ping { animation: ping 1.8s ease-out infinite; }
+      @keyframes ping {
+        0% { border-color: rgba(255,196,100,.75); box-shadow: 0 0 0 0 rgba(255,196,100,.35); }
+        70% { border-color: rgba(255,196,100,0); box-shadow: 0 0 0 14px rgba(255,196,100,0); }
+        100% { border-color: rgba(255,196,100,0); box-shadow: 0 0 0 0 rgba(255,196,100,0); }
+      }
+      body.off .bead { box-shadow: inset 0 3px 5px rgba(255,235,200,.25), inset 0 -6px 8px rgba(0,0,0,.5), 0 0 12px rgba(255,196,100,.35); }
+
+      /* ---------- Form đăng nhập ---------- */
+      .card-zone {
+        position: absolute; left: 50%; top: 55%;
+        transform: translate(-50%, -50%);
+        width: min(400px, calc(100vw - 36px));
+        z-index: 4;
+      }
+      .card {
+        background: linear-gradient(175deg, #fffaf0, #fdeed3);
+        color: var(--ink);
+        border: 1px solid rgba(122, 78, 22, .18);
+        border-radius: 22px;
+        padding: 30px 28px 24px;
+        opacity: var(--light);
+        transform: translateY(calc((1 - var(--light)) * 22px)) scale(calc(.965 + var(--light) * .035));
+        box-shadow:
+          0 34px 60px rgba(0,0,0,.55),
+          0 0 90px rgba(255,190,100, calc(var(--light) * .30));
+      }
+      body.off .card { pointer-events: none; visibility: hidden; transition: visibility 0s .45s; }
+      body.on .card { visibility: visible; }
+      .card h1 {
+        margin: 0 0 6px; font-size: 1.65rem; font-weight: 800; letter-spacing: -.01em;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .card h1 svg { flex: none; }
+      .card .sub { margin: 0 0 22px; color: #7a6547; font-size: .92rem; line-height: 1.5; }
+      .field { margin-bottom: 16px; }
+      .field label {
+        display: block; font-size: .82rem; font-weight: 600; color: #5d4a2f;
+        margin-bottom: 7px; letter-spacing: .01em;
+      }
+      .field .wrap { position: relative; }
+      .field input {
+        width: 100%; height: 50px; border-radius: 13px;
+        border: 1.5px solid #e3d0ab; background: #fffdf7;
+        padding: 0 46px 0 15px; font-size: 1rem; color: var(--ink);
+        outline: none; transition: border-color .18s, box-shadow .18s;
+      }
+      .field input::placeholder { color: #b7a37c; }
+      .field input:focus {
+        border-color: var(--amber);
+        box-shadow: 0 0 0 4px rgba(242,169,59,.22);
+      }
+      .field.err input { border-color: #c6502a; box-shadow: 0 0 0 4px rgba(198,80,42,.14); }
+      .field .msg { display: none; margin-top: 6px; font-size: .8rem; color: #b3401e; }
+      .field.err .msg { display: block; }
+      .eye {
+        position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+        width: 40px; height: 40px; border: 0; border-radius: 10px;
+        background: transparent; cursor: pointer; display: grid; place-items: center;
+        color: #8a6f45;
+      }
+      .eye:hover { background: rgba(242,169,59,.14); }
+      .row-between {
+        display: flex; justify-content: flex-end; margin: 2px 0 18px;
+      }
+      .linklike {
+        border: 0; background: none; padding: 6px 2px; cursor: pointer;
+        color: var(--amber-deep); font-size: .86rem; font-weight: 600;
+        min-height: 2rem;
+      }
+      .linklike:hover { text-decoration: underline; }
+      .submit {
+        width: 100%; height: 52px; border: 0; border-radius: 14px; cursor: pointer;
+        background: linear-gradient(180deg, #f5b64a, #d98d22);
+        color: #fff8ea; font-size: 1.02rem; font-weight: 700;
+        box-shadow: 0 10px 22px rgba(198,127,29,.38), inset 0 1px 0 rgba(255,255,255,.5);
+        transition: transform .12s, filter .18s;
+        display: flex; align-items: center; justify-content: center; gap: 9px;
+      }
+      .submit:hover { filter: brightness(1.06); }
+      .submit:active { transform: scale(.98); }
+      .submit.done { background: linear-gradient(180deg, #4c9a58, #35793f); box-shadow: 0 10px 22px rgba(53,121,63,.35); }
+      .status {
+        min-height: 1.35em; margin: 14px 0 0; font-size: .86rem; line-height: 1.5;
+        text-align: center; color: #7a6547;
+      }
+      .status.ok { color: #2e7d32; font-weight: 600; }
+      .status.bad { color: #b3401e; font-weight: 600; }
+      .shake { animation: shake .45s ease; }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-9px); } 40% { transform: translateX(8px); }
+        60% { transform: translateX(-5px); } 80% { transform: translateX(4px); }
+      }
+
+      /* ---------- Gợi ý + nút âm thanh ---------- */
+      .hint {
+        position: absolute; left: 50%; bottom: max(26px, env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 7; width: max-content; max-width: calc(100vw - 32px);
+        text-align: center;
+        background: rgba(10, 13, 18, .86);
+        border: 1px solid rgba(255,214,150,.22);
+        color: #f3e3c2; font-size: .9rem; line-height: 1.45;
+        padding: 10px 18px; border-radius: 999px;
+      }
+      .hint b { color: var(--amber); }
+      .sound-btn {
+        position: absolute; top: max(18px, env(safe-area-inset-top)); right: 18px; z-index: 8;
+        width: 46px; height: 46px; border-radius: 50%;
+        border: 1px solid rgba(255,214,150,.28);
+        background: rgba(12, 15, 20, .75); color: #f3e3c2;
+        cursor: pointer; display: grid; place-items: center;
+      }
+      .sound-btn:hover { background: rgba(30, 34, 42, .9); }
+      .sound-btn .icon-off { display: none; }
+      .sound-btn.muted .icon-on { display: none; }
+      .sound-btn.muted .icon-off { display: block; }
+
+      @media (max-height: 700px) {
+        .card-zone { top: 55%; }
+        .card { padding: 22px 22px 18px; }
+        .cord { height: 84px; } .lamp { top: 72px; }
+        .glow, .bulb-core { top: 158px; } .cone { top: 150px; }
+        .pull { top: 92px; }
+        .pull-line { height: 56px; }
+      }
+      /* ---------- Mobile: cụm đèn thu gọn hẳn ở trên, form ghim ngay dưới vùng đèn,
+         không căn giữa theo % nữa để đèn/dây kéo không bao giờ đè lên chữ ---------- */
+      @media (max-width: 640px) {
+        .cord { height: 36px; }
+        .lamp { top: 28px; width: 136px; height: auto; }
+        .glow { top: 94px; width: 190px; height: 190px; }
+        .bulb-core { top: 94px; width: 26px; height: 26px; }
+        .cone { top: 86px; width: 125vw; height: 46vh; opacity: calc(var(--light) * .85); }
+        .pull { top: 54px; left: 44px; }
+        .pull-line { height: 44px; }
+        .bead-btn { width: 48px; height: 48px; }
+        .card-zone {
+          top: 166px; top: clamp(166px, 24dvh, 232px);
+          transform: translateX(-50%);
+          width: calc(100vw - 28px);
+        }
+        .card {
+          padding: 20px 18px 14px; border-radius: 18px;
+          max-height: calc(100vh - 254px); max-height: calc(100dvh - 254px);
+          overflow-y: auto;
+        }
+        .card h1 { font-size: 1.42rem; }
+        .card .sub { font-size: .88rem; margin-bottom: 16px; }
+        .field { margin-bottom: 12px; }
+        .field input { height: 46px; }
+        .row-between { margin-bottom: 14px; }
+        .submit { height: 48px; }
+        .hint {
+          font-size: .82rem; line-height: 1.4;
+          padding: 8px 14px; border-radius: 16px;
+          width: calc(100vw - 24px);
+          bottom: max(12px, env(safe-area-inset-bottom));
+        }
+        .sound-btn { width: 42px; height: 42px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .mote { display: none; }
+        .pull-line.snap { transition: none; }
+        body.off .bead-btn .ping { animation: none; }
+        .shake { animation: none; }
+      }
+    </style>
+  </head>
+  <body class="on">
+    <div class="scene" aria-hidden="false">
+      <div class="ambient"></div>
+      <!-- Ô cửa sổ bên trái (PC): ngoài vườn xanh, bậu cửa bày 3 chậu cây -->
+      <div class="window" aria-hidden="true">
+        <div class="window-frame">
+          <div class="mullion-v"></div>
+          <div class="mullion-h"></div>
+          <div class="window-curtain left"></div>
+          <div class="window-curtain right"></div>
+          <div class="plants">
+            <!-- Chậu trầu bà lá lớn, gốm trắng -->
+            <svg class="plant" width="62" height="72" viewBox="0 0 62 72" aria-hidden="true">
+              <path d="M31 44 C28 30 18 24 8 26 C12 36 20 42 31 44Z" fill="#3e7d32"/>
+              <path d="M31 42 C32 27 40 18 52 16 C52 28 44 38 31 42Z" fill="#4c9a45"/>
+              <path d="M31 44 C30 32 24 24 16 18 C14 30 20 40 31 44Z" fill="#5cab52"/>
+              <path d="M31 43 C33 31 40 25 48 27 C46 36 39 42 31 43Z" fill="#35702b"/>
+              <path d="M30 46 L31 34 M31 44 L20 30 M32 42 L44 24" stroke="#2e5e27" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+              <path d="M18 46 h26 l-3.2 20 a3 3 0 0 1 -3 2.6 H24.2 a3 3 0 0 1 -3 -2.6 Z" fill="#f3ead8"/>
+              <path d="M18 46 h26 l-.7 5 H18.7 Z" fill="#d9c9a8"/>
+            </svg>
+            <!-- Chậu sen đá nhỏ giữa, đất nung -->
+            <svg class="plant" width="44" height="46" viewBox="0 0 44 46" aria-hidden="true">
+              <g fill="#6db56a">
+                <ellipse cx="22" cy="20" rx="5" ry="9"/>
+                <ellipse cx="13" cy="24" rx="4.4" ry="8" transform="rotate(-38 13 24)"/>
+                <ellipse cx="31" cy="24" rx="4.4" ry="8" transform="rotate(38 31 24)"/>
+                <ellipse cx="17" cy="18" rx="4" ry="7" transform="rotate(-16 17 18)" fill="#84c47f"/>
+                <ellipse cx="27" cy="18" rx="4" ry="7" transform="rotate(16 27 18)" fill="#84c47f"/>
+              </g>
+              <circle cx="22" cy="22" r="4.2" fill="#9ed195"/>
+              <path d="M12 30 h20 l-2.4 11 a3 3 0 0 1 -2.9 2.4 H17.3 a3 3 0 0 1 -2.9 -2.4 Z" fill="#b85c38"/>
+              <rect x="10.5" y="27.5" width="23" height="4" rx="1.6" fill="#9c4a2c"/>
+            </svg>
+            <!-- Chậu dây leo rủ, gốm xanh -->
+            <svg class="plant" width="58" height="76" viewBox="0 0 58 76" aria-hidden="true">
+              <path d="M14 30 C10 44 12 56 8 68 M29 32 C28 46 30 58 27 72 M44 30 C47 42 44 54 48 66" stroke="#3e7d32" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              <g fill="#4c9a45">
+                <ellipse cx="10" cy="46" rx="5" ry="3.4" transform="rotate(-32 10 46)"/><ellipse cx="12" cy="60" rx="5" ry="3.4" transform="rotate(24 12 60)"/>
+                <ellipse cx="29" cy="50" rx="5" ry="3.4" transform="rotate(28 29 50)"/><ellipse cx="27" cy="64" rx="5" ry="3.4" transform="rotate(-22 27 64)"/>
+                <ellipse cx="46" cy="44" rx="5" ry="3.4" transform="rotate(30 46 44)"/><ellipse cx="48" cy="58" rx="5" ry="3.4" transform="rotate(-26 48 58)"/>
+              </g>
+              <g fill="#5cab52">
+                <ellipse cx="20" cy="22" rx="7" ry="4.4" transform="rotate(-24 20 22)"/><ellipse cx="38" cy="21" rx="7" ry="4.4" transform="rotate(22 38 21)"/><ellipse cx="29" cy="16" rx="6" ry="4"/>
+              </g>
+              <path d="M16 28 h26 l-2.8 15 a3 3 0 0 1 -3 2.5 H21.8 a3 3 0 0 1 -3 -2.5 Z" fill="#3f6d6a"/>
+              <path d="M16 28 h26 l-.6 3.6 H16.6 Z" fill="#2f5451"/>
+            </svg>
+          </div>
+        </div>
+        <div class="window-sill"></div>
+      </div>
+      <div class="pool"></div>
+      <div class="ceiling"></div>
+
+      <!-- Cụm đèn: dây treo, chao đèn, bóng, chùm sáng và dây kéo — tất cả đu đưa cùng nhau -->
+      <div class="swing" id="swing">
+        <div class="cone" id="cone"></div>
+        <div class="glow"></div>
+        <div class="cord"></div>
+        <svg class="lamp" width="190" height="104" viewBox="0 0 190 104" role="img" aria-label="Bóng đèn treo">
+          <!-- chụp đèn men xanh -->
+          <path d="M95 14 L150 66 Q153 70 148 70 L42 70 Q37 70 40 66 Z" fill="#1e3a30"/>
+          <path d="M95 14 L150 66 Q153 70 148 70 L42 70 Q37 70 40 66 Z" fill="url(#shadeSheen)"/>
+          <path d="M42 70 L148 70 Q146 78 138 78 L52 78 Q44 78 42 70 Z" fill="#f4ead2"/>
+          <!-- đui đèn đồng -->
+          <rect x="86" y="2" width="18" height="16" rx="3" fill="#b9863c"/>
+          <rect x="89" y="16" width="12" height="7" rx="2" fill="#8f6527"/>
+          <defs>
+            <linearGradient id="shadeSheen" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ffffff" stop-opacity=".16"/>
+              <stop offset=".5" stop-color="#ffffff" stop-opacity="0"/>
+              <stop offset="1" stop-color="#000000" stop-opacity=".28"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="bulb-core"></div>
+
+        <div class="pull">
+          <div class="pull-line" id="pullLine"></div>
+          <button class="bead-btn" id="beadBtn" type="button"
+                  aria-pressed="true"
+                  aria-label="Dây kéo đèn — kéo xuống hoặc bấm để bật tắt đèn">
+            <span class="ping"></span>
+            <span class="bead"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Form đăng nhập: chỉ tồn tại khi đèn sáng -->
+      <div class="card-zone">
+        <form class="card" id="loginCard" novalidate>
+          <h1>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 21h6M10 17.5h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.2 1.3 2.2h4.6c.2-1 .6-1.6 1.3-2.2A6 6 0 0 0 12 3Z" stroke="#c67f1d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Đăng nhập
+          </h1>
+          <p class="sub">Mời các bạn nhập thông tin để đăng nhập, nếu bạn đi ngủ — hãy tắt đèn</p>
+
+          <div class="field" id="fEmail">
+            <label for="email">Email</label>
+            <div class="wrap">
+              <input id="email" name="email" type="email" autocomplete="username"
+                     placeholder="anh@vidu.vn" />
+            </div>
+            <p class="msg">Anh nhập email đúng định dạng giúp em nhé.</p>
+          </div>
+
+          <div class="field" id="fPass">
+            <label for="password">Mật khẩu</label>
+            <div class="wrap">
+              <input id="password" name="password" type="password" autocomplete="current-password"
+                     placeholder="Ít nhất 4 ký tự" />
+              <button class="eye" id="eyeBtn" type="button" aria-label="Hiện mật khẩu">
+                <svg id="eyeOpen" width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                <svg id="eyeShut" width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="display:none">
+                  <path d="M4 4l16 16M9.9 5.9A9.4 9.4 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17.6 17.6 0 0 1-3.3 3.9M6 8A16.9 16.9 0 0 0 2.5 12S6 18.5 12 18.5c1.2 0 2.3-.3 3.3-.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <p class="msg">Mật khẩu cần ít nhất 4 ký tự anh nhé.</p>
+          </div>
+
+          <div class="row-between">
+            <button class="linklike" id="forgotBtn" type="button">Quên mật khẩu?</button>
+          </div>
+
+          <button class="submit" id="submitBtn" type="submit">
+            <span id="submitText">Đăng nhập</span>
+          </button>
+          <p class="status" id="status" role="status"></p>
+        </form>
+      </div>
+
+      <div class="baseboard"></div>
+      <div class="vignette"></div>
+
+      <button class="sound-btn" id="soundBtn" type="button" aria-label="Tắt tiếng" aria-pressed="false">
+        <svg class="icon-on" width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z" fill="currentColor"/>
+          <path d="M15.5 9.2a4 4 0 0 1 0 5.6M18 6.8a7.4 7.4 0 0 1 0 10.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <svg class="icon-off" width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z" fill="currentColor"/>
+          <path d="M15.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <p class="hint" id="hint" aria-live="polite">Đèn đang <b>sáng</b> — nắm hạt gỗ ở dây đèn, <b>kéo xuống</b> để tắt đèn và giấu form.</p>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        var body = document.body;
+        var root = document.documentElement;
+        var swing = document.getElementById("swing");
+        var cone = document.getElementById("cone");
+        var pullLine = document.getElementById("pullLine");
+        var beadBtn = document.getElementById("beadBtn");
+        var hint = document.getElementById("hint");
+        var card = document.getElementById("loginCard");
+        var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        var isOn = true;
+
+        /* ---------- Hạt bụi trong chùm sáng (chỉ desktop — mobile tắt hẳn cho mượt) ---------- */
+        var coarse = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 640;
+        if (!reduced && !coarse) {
+          for (var i = 0; i < 14; i++) {
+            var m = document.createElement("span");
+            m.className = "mote";
+            var size = 1.5 + Math.random() * 2.6;
+            m.style.width = size + "px";
+            m.style.height = size + "px";
+            m.style.left = (30 + Math.random() * 40) + "%";
+            m.style.top = (Math.random() * 55) + "%";
+            m.style.setProperty("--dx", (Math.random() * 46 - 23) + "px");
+            m.style.setProperty("--dy", (50 + Math.random() * 110) + "px");
+            m.style.animationDuration = (7 + Math.random() * 9) + "s";
+            m.style.animationDelay = (-Math.random() * 10) + "s";
+            cone.appendChild(m);
+          }
+        }
+
+        /* ---------- Âm thanh: tiếng "tách" + tiếng ù ù của đèn (Web Audio) ---------- */
+        var actx = null, humNodes = null, masterGain = null, muted = false;
+        function ensureAudio() {
+          if (actx) { if (actx.state === "suspended") actx.resume(); return; }
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          actx = new AC();
+          masterGain = actx.createGain();
+          masterGain.gain.value = muted ? 0 : 1;
+          masterGain.connect(actx.destination);
+        }
+        function clickSound(turningOn) {
+          if (!actx) return;
+          var t = actx.currentTime;
+          // tiếng cơ học của công tắc dây kéo
+          var dur = 0.05;
+          var buffer = actx.createBuffer(1, actx.sampleRate * dur, actx.sampleRate);
+          var data = buffer.getChannelData(0);
+          for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+          var src = actx.createBufferSource(); src.buffer = buffer;
+          var bp = actx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = turningOn ? 2600 : 1900; bp.Q.value = 1.1;
+          var g = actx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          src.connect(bp); bp.connect(g); g.connect(masterGain); src.start(t);
+          // tiếng "tinh" của sợi đốt khi bật
+          if (turningOn) {
+            var osc = actx.createOscillator(); osc.type = "sine"; osc.frequency.setValueAtTime(1480, t);
+            osc.frequency.exponentialRampToValueAtTime(880, t + 0.09);
+            var og = actx.createGain(); og.gain.setValueAtTime(0.06, t); og.gain.exponentialRampToValueAtTime(0.0008, t + 0.12);
+            osc.connect(og); og.connect(masterGain); osc.start(t); osc.stop(t + 0.13);
+          }
+        }
+        function startHum() {
+          if (!actx || humNodes) return;
+          var t = actx.currentTime;
+          var g = actx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.016, t + 0.4);
+          var lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320;
+          var o1 = actx.createOscillator(); o1.type = "sawtooth"; o1.frequency.value = 50;
+          var o2 = actx.createOscillator(); o2.type = "sine"; o2.frequency.value = 100;
+          var g2 = actx.createGain(); g2.gain.value = 0.5;
+          o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(masterGain);
+          o1.start(); o2.start();
+          humNodes = { g: g, o1: o1, o2: o2 };
+        }
+        function stopHum() {
+          if (!actx || !humNodes) return;
+          var t = actx.currentTime, h = humNodes; humNodes = null;
+          h.g.gain.cancelScheduledValues(t);
+          h.g.gain.setValueAtTime(h.g.gain.value, t);
+          h.g.gain.linearRampToValueAtTime(0, t + 0.08);
+          setTimeout(function () { try { h.o1.stop(); h.o2.stop(); } catch (e) {} }, 140);
+        }
+
+        var soundBtn = document.getElementById("soundBtn");
+        soundBtn.addEventListener("click", function () {
+          ensureAudio();
+          muted = !muted;
+          soundBtn.classList.toggle("muted", muted);
+          soundBtn.setAttribute("aria-pressed", String(muted));
+          soundBtn.setAttribute("aria-label", muted ? "Bật tiếng" : "Tắt tiếng");
+          if (masterGain) masterGain.gain.value = muted ? 0 : 1;
+        });
+
+        /* ---------- Vật lý: con lắc đèn + độ sáng ---------- */
+        var angle = 0, vel = 0;             // con lắc (rad)
+        var light = 1, lightTarget = 1;     // độ sáng hiện tại / đích
+        var swayPhase = 0.6;                // pha lắc — bắt đầu lệch khỏi giữa để thấy chuyển động ngay
+        var swayBoostStart = performance.now(); // mốc "mới vào": lắc nhanh lúc đầu rồi êm dần
+        var flicker = null;                 // {start, keys:[[ms, value], ...]}
+        var last = performance.now();
+
+        function flickerValue(now) {
+          var el = now - flicker.start;
+          var keys = flicker.keys;
+          if (el >= keys[keys.length - 1][0]) { flicker = null; return lightTarget; }
+          for (var i = 1; i < keys.length; i++) {
+            if (el <= keys[i][0]) {
+              var p = (el - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]);
+              return keys[i - 1][1] + (keys[i][1] - keys[i - 1][1]) * p;
+            }
+          }
+          return lightTarget;
+        }
+
+        var rafId = null, shownLight = -1;
+        function frame(now) {
+          rafId = null;
+          var dt = Math.min(0.05, (now - last) / 1000); last = now;
+          if (!reduced) {
+            // Khi đèn sáng (form đang hiện): đèn lắc qua lại nhẹ nhàng, liên tục —
+            // con lắc bám theo một góc đích dao động chậm (~3° + gợn nhỏ cho tự nhiên).
+            // Lúc mới vào (và mỗi lần bật sáng lại): tốc độ lắc nhanh gấp đôi cho thấy rõ
+            // chuyển động ngay, rồi êm dần về nhịp ~6 giây sau khoảng 4–5 giây.
+            // Khi tắt đèn: góc đích về 0, đèn đu đưa nốt sau cú kéo rồi đứng yên.
+            var speedMul = 1 + Math.exp(-(now - swayBoostStart) / 1500);
+            if (isOn) swayPhase += dt * 1.05 * speedMul;
+            var swayTarget = isOn
+              ? Math.sin(swayPhase) * 0.042 + Math.sin(swayPhase * 0.58 + 1.3) * 0.013
+              : 0;
+            var acc = -18 * (angle - swayTarget) - 1.35 * vel;
+            vel += acc * dt; angle += vel * dt;
+            swing.style.transform = "rotate(" + angle.toFixed(4) + "rad)";
+          }
+          if (flicker) {
+            light = flickerValue(now);
+          } else {
+            var rate = lightTarget > light ? 0.35 : 0.22; // tắt nhanh hơn bật một chút cho "đã"
+            light += (lightTarget - light) * Math.min(1, rate * dt * 8);
+            if (Math.abs(lightTarget - light) < 0.002) light = lightTarget;
+          }
+          // Chỉ cập nhật --light khi giá trị thật sự thay đổi (làm tròn 2 số thập phân)
+          // để trình duyệt khỏi repaint toàn cảnh mỗi khung hình — nguồn giật lag chính trên mobile.
+          var v = Math.round(light * 100) / 100;
+          if (v !== shownLight) { shownLight = v; root.style.setProperty("--light", v.toFixed(2)); }
+          // Đèn đang sáng thì không bao giờ "yên": phải chạy tiếp để giữ nhịp lắc nhẹ.
+          // Chỉ ngủ hẳn khi đèn đã tắt, hết chớp và con lắc đã đứng yên (hoặc reduced-motion).
+          var settled = !flicker && light === lightTarget &&
+            (reduced || (!isOn && Math.abs(angle) < 0.0012 && Math.abs(vel) < 0.0012));
+          if (settled) {
+            if (!reduced && angle !== 0) { angle = 0; vel = 0; swing.style.transform = "rotate(0rad)"; }
+            return; // Mọi thứ đã yên: vòng lặp ngủ hẳn, không tốn CPU/GPU nữa
+          }
+          rafId = requestAnimationFrame(frame);
+        }
+        function wake() {
+          if (rafId === null) { last = performance.now(); rafId = requestAnimationFrame(frame); }
+        }
+        wake();
+
+        /* ---------- Bật / tắt đèn ---------- */
+        function setLamp(on, viaPull) {
+          if (on === isOn && viaPull) { /* kéo nhầm chiều vẫn rung đèn */ }
+          isOn = on;
+          ensureAudio();
+          clickSound(on);
+          body.classList.toggle("on", on);
+          body.classList.toggle("off", !on);
+          beadBtn.setAttribute("aria-pressed", String(on));
+          vel += (Math.random() > 0.5 ? 1 : -1) * (viaPull ? 0.55 : 0.3); // đèn đu đưa sau cú kéo
+          if (on) {
+            lightTarget = 1;
+            swayBoostStart = performance.now(); // form hiện lại = "mới vào": lắc nhanh trở lại
+            if (!reduced) flicker = { start: performance.now(), keys: [[0, 0], [55, 0.9], [105, 0.12], [165, 1], [235, 0.35], [330, 1]] };
+            setTimeout(startHum, 380);
+            hint.innerHTML = "Đèn đang <b>sáng</b> — nắm hạt gỗ ở dây đèn, <b>kéo xuống</b> để tắt đèn và giấu form.";
+          } else {
+            lightTarget = 0; flicker = null;
+            stopHum();
+            hint.innerHTML = "Tối om rồi, form biến mất luôn. <b>Kéo dây đèn</b> xuống để bật sáng lại anh nhé.";
+          }
+          wake();
+        }
+
+        /* ---------- Kéo dây: kéo thật bằng chuột / chạm ---------- */
+        /* Độ dài dây nghỉ lấy theo CSS của từng cỡ màn hình (desktop 88, màn thấp 56, mobile 44)
+           để dây không tự dài ra đè xuống form sau mỗi lần kéo */
+        var BASE_LINE = pullLine.offsetHeight || 88, drag = null;
+        window.addEventListener("resize", function () {
+          if (drag) return;
+          pullLine.style.height = "";
+          BASE_LINE = pullLine.offsetHeight || BASE_LINE;
+        });
+        function pullRelease(pulled, quickTap) {
+          pullLine.classList.add("snap");
+          pullLine.style.height = BASE_LINE + "px";
+          setTimeout(function () { pullLine.classList.remove("snap"); }, 520);
+          if (pulled > 46 || quickTap) setLamp(!isOn, true);
+          else { vel += 0.12; wake(); } // kéo nhẹ chưa tới ngưỡng: đèn chỉ rung rung
+        }
+        beadBtn.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          ensureAudio();
+          beadBtn.setPointerCapture(e.pointerId);
+          drag = { y: e.clientY, t: performance.now(), pull: 0 };
+          pullLine.classList.remove("snap");
+        });
+        beadBtn.addEventListener("pointermove", function (e) {
+          if (!drag) return;
+          drag.pull = Math.max(0, Math.min(120, e.clientY - drag.y));
+          pullLine.style.height = (BASE_LINE + drag.pull) + "px";
+        });
+        function endDrag(e) {
+          if (!drag) return;
+          var d = drag; drag = null;
+          pullRelease(d.pull, (performance.now() - d.t) < 300 && d.pull < 12);
+        }
+        beadBtn.addEventListener("pointerup", endDrag);
+        beadBtn.addEventListener("pointercancel", endDrag);
+        // Bàn phím: Enter / Space trên hạt gỗ = một cú kéo
+        beadBtn.addEventListener("keydown", function (e) {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          pullLine.style.height = (BASE_LINE + 74) + "px";
+          setTimeout(function () { pullRelease(74, false); }, 130);
+        });
+        beadBtn.addEventListener("click", function (e) { e.preventDefault(); }); // tránh toggle 2 lần sau pointer
+
+        /* ---------- Form ---------- */
+        var email = document.getElementById("email");
+        var password = document.getElementById("password");
+        var fEmail = document.getElementById("fEmail");
+        var fPass = document.getElementById("fPass");
+        var status = document.getElementById("status");
+        var submitBtn = document.getElementById("submitBtn");
+        var submitText = document.getElementById("submitText");
+
+        document.getElementById("eyeBtn").addEventListener("click", function () {
+          var show = password.type === "password";
+          password.type = show ? "text" : "password";
+          document.getElementById("eyeOpen").style.display = show ? "none" : "block";
+          document.getElementById("eyeShut").style.display = show ? "block" : "none";
+          this.setAttribute("aria-label", show ? "Ẩn mật khẩu" : "Hiện mật khẩu");
+          password.focus();
+        });
+        document.getElementById("forgotBtn").addEventListener("click", function () {
+          status.className = "status";
+          status.textContent = "Trang này là bản demo hiệu ứng kéo đèn nên chưa có khôi phục mật khẩu anh nhé.";
+        });
+        email.addEventListener("input", function () { fEmail.classList.remove("err"); });
+        password.addEventListener("input", function () { fPass.classList.remove("err"); });
+
+        card.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+          var okPass = password.value.length >= 4;
+          fEmail.classList.toggle("err", !okEmail);
+          fPass.classList.toggle("err", !okPass);
+          if (!okEmail || !okPass) {
+            status.className = "status bad";
+            status.textContent = "Anh kiểm tra lại thông tin giúp em nhé.";
+            card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+            return;
+          }
+          submitBtn.classList.add("done");
+          submitText.textContent = "Đăng nhập thành công";
+          status.className = "status ok";
+          status.textContent = "Chào mừng anh quay lại! (Bản demo hiệu ứng — thông tin chưa được gửi đi đâu cả.)";
+          // đèn "gật đầu" vui mừng: chớp nhẹ hai cái
+          if (!reduced) flicker = { start: performance.now(), keys: [[0, 1], [90, 0.55], [180, 1], [270, 0.55], [380, 1]] };
+          vel += 0.18;
+          wake();
+          setTimeout(function () {
+            submitBtn.classList.remove("done");
+            submitText.textContent = "Đăng nhập";
+          }, 3200);
+        });
+      })();
+    </script>
+  </body>
+</html>
